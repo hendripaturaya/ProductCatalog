@@ -51,7 +51,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Simple Inventory',
+                  'Product Catalog',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
@@ -107,12 +107,6 @@ class _LoginPageState extends State<LoginPage> {
                     icon: const Icon(Icons.login),
                     label: const Text('Masuk'),
                   ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Dummy login: gunakan isian apa pun.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
                 ),
               ],
             ),
