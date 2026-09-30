@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_redux/flutter_redux.dart';
 
 import '../models/product.dart';
-import '../services/api_service.dart';
+import '../redux/actions/product_actions.dart';
+import '../redux/app_state.dart';
 import '../widgets/product_card.dart';
 import 'add_product_page.dart';
 import 'product_detail_page.dart';
@@ -14,20 +16,8 @@ class ProductListPage extends StatefulWidget {
 }
 
 class _ProductListPageState extends State<ProductListPage> {
-  final ApiService _apiService = ApiService();
   final TextEditingController _searchController = TextEditingController();
-
-  bool _isLoading = true;
-  String? _errorMessage;
   String? _deletingProductId;
-  List<Product> _allProducts = [];
-  List<Product> _visibleProducts = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadProducts();
-  }
 
   @override
   void dispose() {
@@ -35,44 +25,24 @@ class _ProductListPageState extends State<ProductListPage> {
     super.dispose();
   }
 
-  Future<void> _loadProducts({bool showLoading = true}) async {
-    if (showLoading && mounted) {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
-    }
+  Future<void> _openProductForm(
+    _ProductListViewModel viewModel, [
+    Product? product,
+  ]) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (context) => AddProductPage(product: product)),
+    );
 
-    try {
-      final loadedProducts = await _apiService.getProducts();
-      if (!mounted) return;
-
-      setState(() {
-        _allProducts = loadedProducts;
-        _applySearch();
-        _isLoading = false;
-        _errorMessage = null;
-      });
-    } catch (error) {
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-        _errorMessage = ApiService.errorMessage(error);
-      });
+    if (result == true && mounted) {
+      await viewModel.loadProducts();
     }
   }
 
-  void _applySearch() {
-    final query = _searchController.text.trim().toLowerCase();
-    _visibleProducts = query.isEmpty
-        ? List<Product>.from(_allProducts)
-        : _allProducts
-              .where((product) => product.name.toLowerCase().contains(query))
-              .toList();
-  }
-
-  Future<void> _deleteProduct(Product product) async {
+  Future<void> _deleteProduct(
+    Product product,
+    _ProductListViewModel viewModel,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -99,21 +69,13 @@ class _ProductListPageState extends State<ProductListPage> {
 
     setState(() => _deletingProductId = product.id);
     try {
-      await _apiService.deleteProduct(product.id);
+      final error = await viewModel.deleteProduct(product.id);
       if (!mounted) return;
 
-      // Data diambil ulang dari API agar tampilan selalu sesuai server.
-      await _loadProducts(showLoading: false);
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Produk berhasil dihapus.')));
-    } catch (error) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ApiService.errorMessage(error)),
-          backgroundColor: Colors.red,
+          content: Text(error ?? 'Produk berhasil dihapus.'),
+          backgroundColor: error == null ? null : Colors.red,
         ),
       );
     } finally {
@@ -123,69 +85,81 @@ class _ProductListPageState extends State<ProductListPage> {
     }
   }
 
-  Future<void> _openProductForm([Product? product]) async {
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (context) => AddProductPage(product: product)),
-    );
+  List<Product> _filterProducts(List<Product> products) {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return products;
 
-    if (result == true && mounted) {
-      await _loadProducts();
-    }
+    return products
+        .where((product) => product.name.toLowerCase().contains(query))
+        .toList(growable: false);
   }
 
   @override
   Widget build(BuildContext context) {
+    return StoreConnector<AppState, _ProductListViewModel>(
+      onInit: (store) {
+        if (store.state.crudStatus == CrudStatus.initial) {
+          store.dispatch(FetchProductsAction());
+        }
+      },
+      converter: (store) => _ProductListViewModel(
+        products: store.state.products,
+        isLoading: store.state.isLoading,
+        isInitial: store.state.crudStatus == CrudStatus.initial,
+        error: store.state.error,
+        loadProducts: () async {
+          await store.dispatch(FetchProductsAction());
+        },
+        deleteProduct: (id) async {
+          await store.dispatch(DeleteProductAction(id));
+          return store.state.crudStatus == CrudStatus.failure
+              ? store.state.error ?? 'Produk gagal dihapus. Silakan coba lagi.'
+              : null;
+        },
+      ),
+      builder: (context, viewModel) => _buildScaffold(context, viewModel),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, _ProductListViewModel viewModel) {
+    final isRequestActive = viewModel.isLoading || viewModel.isInitial;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Product List'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _isLoading ? null : _loadProducts,
+            onPressed: isRequestActive
+                ? null
+                : () async => viewModel.loadProducts(),
             tooltip: 'Muat ulang data',
           ),
         ],
       ),
-      body: _buildBody(),
+      body: _buildBody(viewModel),
       floatingActionButton: FloatingActionButton(
-        onPressed: _isLoading ? null : () => _openProductForm(),
+        onPressed: isRequestActive
+            ? null
+            : () async => _openProductForm(viewModel),
         tooltip: 'Tambah produk',
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildBody() {
-    if (_isLoading) {
+  Widget _buildBody(_ProductListViewModel viewModel) {
+    if ((viewModel.isLoading || viewModel.isInitial) &&
+        viewModel.products.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, color: Colors.red),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: _loadProducts,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Coba Lagi'),
-              ),
-            ],
-          ),
-        ),
-      );
+    if (viewModel.error != null && viewModel.products.isEmpty) {
+      return _buildErrorState(viewModel.error!, viewModel.loadProducts);
     }
+
+    final visibleProducts = _filterProducts(viewModel.products);
+    final isSearching = _searchController.text.trim().isNotEmpty;
 
     return Column(
       children: [
@@ -202,7 +176,7 @@ class _ProductListPageState extends State<ProductListPage> {
                       tooltip: 'Hapus pencarian',
                       onPressed: () {
                         _searchController.clear();
-                        setState(_applySearch);
+                        setState(() {});
                       },
                     )
                   : null,
@@ -210,20 +184,22 @@ class _ProductListPageState extends State<ProductListPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onChanged: (_) => setState(_applySearch),
+            onChanged: (_) => setState(() {}),
           ),
         ),
+        if (viewModel.error != null)
+          _buildInlineError(viewModel.error!, viewModel.loadProducts),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () => _loadProducts(showLoading: false),
-            child: _visibleProducts.isEmpty
-                ? _buildEmptyList()
+            onRefresh: viewModel.loadProducts,
+            child: visibleProducts.isEmpty
+                ? _buildEmptyList(isSearching: isSearching)
                 : ListView.builder(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(12),
-                    itemCount: _visibleProducts.length,
+                    itemCount: visibleProducts.length,
                     itemBuilder: (context, index) {
-                      final product = _visibleProducts[index];
+                      final product = visibleProducts[index];
                       return ProductCard(
                         product: product,
                         isDeleting: _deletingProductId == product.id,
@@ -236,8 +212,8 @@ class _ProductListPageState extends State<ProductListPage> {
                             ),
                           );
                         },
-                        onEdit: () => _openProductForm(product),
-                        onDelete: () => _deleteProduct(product),
+                        onEdit: () => _openProductForm(viewModel, product),
+                        onDelete: () => _deleteProduct(product, viewModel),
                       );
                     },
                   ),
@@ -247,8 +223,52 @@ class _ProductListPageState extends State<ProductListPage> {
     );
   }
 
-  Widget _buildEmptyList() {
-    final isSearching = _searchController.text.trim().isNotEmpty;
+  Widget _buildErrorState(String error, Future<void> Function() retry) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, color: Colors.red),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () async => retry(),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInlineError(String error, Future<void> Function() retry) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Colors.red),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(error, style: const TextStyle(color: Colors.red)),
+          ),
+          TextButton(
+            onPressed: () async => retry(),
+            child: const Text('Coba Lagi'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyList({required bool isSearching}) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
@@ -277,4 +297,22 @@ class _ProductListPageState extends State<ProductListPage> {
       ],
     );
   }
+}
+
+class _ProductListViewModel {
+  const _ProductListViewModel({
+    required this.products,
+    required this.isLoading,
+    required this.isInitial,
+    required this.error,
+    required this.loadProducts,
+    required this.deleteProduct,
+  });
+
+  final List<Product> products;
+  final bool isLoading;
+  final bool isInitial;
+  final String? error;
+  final Future<void> Function() loadProducts;
+  final Future<String?> Function(String id) deleteProduct;
 }
