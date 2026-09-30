@@ -4,21 +4,22 @@ import 'package:redux/redux.dart';
 
 import 'screens/login_page.dart';
 import 'redux/app_state.dart';
+import 'redux/middleware/product_middleware.dart';
 import 'redux/reducers/product_reducer.dart';
+import 'services/api_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final apiService = ApiService();
   final store = Store<AppState>(
     productReducer,
     initialState: AppState(),
+    middleware: createProductMiddleware(apiService),
   );
 
   runApp(
-    StoreProvider<AppState>(
-      store: store,
-      child: const ProductCatalogApp(),
-    ),
+    StoreProvider<AppState>(store: store, child: const ProductCatalogApp()),
   );
 }
 
