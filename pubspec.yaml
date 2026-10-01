@@ -38,6 +38,7 @@ dependencies:
   dio: ^5.11.1
   redux: ^5.0.0
   flutter_redux: ^0.10.0
+  image_picker: ^1.2.2
 
 dev_dependencies:
   flutter_test:

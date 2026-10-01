@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 import '../models/product.dart';
@@ -75,6 +77,33 @@ class ApiService {
     } on DioException {
       rethrow;
     }
+  }
+
+  /// Upload gambar ke Directus (`POST /files`) dan kembalikan UUID file-nya.
+  /// UUID ini disimpan di field `image_url` produk; [Product.displayImageUrl]
+  /// yang mengubahnya menjadi URL penuh.
+  Future<String> uploadImage(Uint8List bytes, String filename) async {
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(bytes, filename: filename),
+    });
+
+    final response = await _dio.post<dynamic>(
+      '/files',
+      data: formData,
+      options: Options(
+        sendTimeout: const Duration(seconds: 60),
+        receiveTimeout: const Duration(seconds: 60),
+      ),
+    );
+
+    final data = _unwrapData(response.data);
+    final id = data is Map ? data['id']?.toString() : null;
+    if (id == null || id.isEmpty) {
+      throw const FormatException(
+        'Upload gambar gagal: ID file tidak diterima.',
+      );
+    }
+    return id;
   }
 
   Product _productFromResponse(

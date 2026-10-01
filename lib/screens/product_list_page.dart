@@ -4,6 +4,7 @@ import 'package:flutter_redux/flutter_redux.dart';
 import '../models/product.dart';
 import '../redux/actions/product_actions.dart';
 import '../redux/app_state.dart';
+import '../widgets/gradient_header.dart';
 import '../widgets/product_card.dart';
 import 'add_product_page.dart';
 import 'product_detail_page.dart';
@@ -46,6 +47,7 @@ class _ProductListPageState extends State<ProductListPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Konfirmasi Hapus'),
         content: Text('Hapus produk "${product.name}"?'),
         actions: [
@@ -125,25 +127,67 @@ class _ProductListPageState extends State<ProductListPage> {
     final isRequestActive = viewModel.isLoading || viewModel.isInitial;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Product List'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: isRequestActive
-                ? null
-                : () async => viewModel.loadProducts(),
-            tooltip: 'Muat ulang data',
-          ),
+      backgroundColor: Colors.grey[100],
+      body: Column(
+        children: [
+          _buildHeader(viewModel, isRequestActive),
+          Expanded(child: _buildBody(viewModel)),
         ],
       ),
-      body: _buildBody(viewModel),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: isRequestActive
             ? null
             : () async => _openProductForm(viewModel),
         tooltip: 'Tambah produk',
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text(
+          'TAMBAH',
+          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
+        ),
+      ),
+    );
+  }
+
+  /// Header gradien (sama seperti Login/Home) dengan kolom pencarian di dalamnya.
+  Widget _buildHeader(_ProductListViewModel viewModel, bool isRequestActive) {
+    return GradientHeader(
+      compact: true,
+      bottomPadding: 20,
+      title: 'Product List',
+      subtitle: 'Temukan berbagai produk yang tersedia.',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh, color: Colors.white),
+          tooltip: 'Muat ulang data',
+          onPressed: isRequestActive
+              ? null
+              : () async => viewModel.loadProducts(),
+        ),
+      ],
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Cari produk...',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  tooltip: 'Hapus pencarian',
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {});
+                  },
+                )
+              : null,
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        onChanged: (_) => setState(() {}),
       ),
     );
   }
@@ -163,30 +207,6 @@ class _ProductListPageState extends State<ProductListPage> {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Cari produk...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      tooltip: 'Hapus pencarian',
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {});
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-        ),
         if (viewModel.error != null)
           _buildInlineError(viewModel.error!, viewModel.loadProducts),
         Expanded(
@@ -194,9 +214,16 @@ class _ProductListPageState extends State<ProductListPage> {
             onRefresh: viewModel.loadProducts,
             child: visibleProducts.isEmpty
                 ? _buildEmptyList(isSearching: isSearching)
-                : ListView.builder(
+                : GridView.builder(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 14,
+                          crossAxisSpacing: 14,
+                          childAspectRatio: 0.6,
+                        ),
                     itemCount: visibleProducts.length,
                     itemBuilder: (context, index) {
                       final product = visibleProducts[index];
@@ -238,8 +265,13 @@ class _ProductListPageState extends State<ProductListPage> {
               style: const TextStyle(fontSize: 16, color: Colors.red),
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
+            FilledButton.icon(
               onPressed: () async => retry(),
+              style: FilledButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
               icon: const Icon(Icons.refresh),
               label: const Text('Coba Lagi'),
             ),
@@ -251,7 +283,7 @@ class _ProductListPageState extends State<ProductListPage> {
 
   Widget _buildInlineError(String error, Future<void> Function() retry) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       child: Row(
         children: [
           const Icon(Icons.error_outline, color: Colors.red),

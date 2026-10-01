@@ -19,134 +19,137 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // IMAGE
-            _buildImage(),
-
-            const SizedBox(width: 12),
-
-            // INFORMASI PRODUK
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withAlpha(25),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          product.category,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.blue[800],
-                            fontWeight: FontWeight.w500,
+      margin: EdgeInsets.zero,
+      elevation: 4,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        onTap: isDeleting ? null : onDetail,
+        child: Opacity(
+          opacity: isDeleting ? 0.6 : 1,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // GAMBAR (mengisi sisa tinggi kartu)
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildImage(),
+                    Positioned(
+                      left: 8,
+                      top: 8,
+                      right: 8,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withAlpha(140),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            product.category,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Stok: ${product.quantity}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[700],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  Text(
-                    'Rp ${formatPrice(product.price)}',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
                     ),
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  // ACTION BUTTONS (DETAIL, EDIT, DELETE)
-                  Row(
-                    children: [
-                      OutlinedButton(
-                        onPressed: isDeleting ? null : onDetail,
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                        ),
-                        child: const Text('Detail'),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: isDeleting ? null : onEdit,
-                        icon: const Icon(
-                          Icons.edit_outlined,
-                          color: Colors.orange,
-                          size: 20,
-                        ),
-                        tooltip: 'Edit',
-                        constraints: const BoxConstraints(),
-                        padding: const EdgeInsets.all(6),
-                      ),
-                      const SizedBox(width: 4),
-                      isDeleting
-                          ? const SizedBox(
-                              width: 32,
-                              height: 32,
-                              child: Padding(
-                                padding: EdgeInsets.all(7),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            )
-                          : IconButton(
-                              onPressed: onDelete,
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: Colors.red,
-                                size: 20,
-                              ),
-                              tooltip: 'Hapus',
-                              constraints: const BoxConstraints(),
-                              padding: const EdgeInsets.all(6),
-                            ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+
+              // INFORMASI PRODUK
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Rp ${formatPrice(product.price)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // STOK + AKSI (EDIT, HAPUS)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 4, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Stok: ${product.quantity}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: isDeleting ? null : onEdit,
+                      icon: const Icon(
+                        Icons.edit_outlined,
+                        color: Colors.orange,
+                        size: 20,
+                      ),
+                      tooltip: 'Edit',
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    isDeleting
+                        ? const SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: Padding(
+                              padding: EdgeInsets.all(11),
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : IconButton(
+                            onPressed: onDelete,
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                              size: 20,
+                            ),
+                            tooltip: 'Hapus',
+                            visualDensity: VisualDensity.compact,
+                          ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -155,23 +158,32 @@ class ProductCard extends StatelessWidget {
   Widget _buildImage() {
     final imageUrl = product.displayImageUrl;
     final placeholder = Container(
-      width: 100,
-      height: 100,
       color: Colors.grey[200],
-      child: const Icon(Icons.image_not_supported, color: Colors.grey),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.image_not_supported,
+        color: Colors.grey,
+        size: 40,
+      ),
     );
 
     if (imageUrl == null) return placeholder;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Image.network(
-        imageUrl,
-        width: 100,
-        height: 100,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => placeholder,
-      ),
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, progress) => progress == null
+          ? child
+          : Container(
+              color: Colors.grey[200],
+              alignment: Alignment.center,
+              child: const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+      errorBuilder: (_, _, _) => placeholder,
     );
   }
 }

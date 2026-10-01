@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../models/product.dart';
 
 // Get
@@ -16,7 +18,12 @@ class FetchProductsFailureAction {
 // Post
 class AddProductAction {
   final Product product;
-  AddProductAction(this.product);
+
+  /// Gambar baru dari galeri (opsional). Middleware mengunggahnya lebih dulu,
+  /// lalu menyimpan UUID file ke field `image_url` produk.
+  final Uint8List? imageBytes;
+  final String? imageName;
+  AddProductAction(this.product, {this.imageBytes, this.imageName});
 }
 
 class AddProductSuccessAction {
@@ -32,7 +39,9 @@ class AddProductFailureAction {
 // Patch
 class UpdateProductAction {
   final Product product; // id harus terisi
-  UpdateProductAction(this.product);
+  final Uint8List? imageBytes;
+  final String? imageName;
+  UpdateProductAction(this.product, {this.imageBytes, this.imageName});
 }
 
 class UpdateProductSuccessAction {
@@ -60,3 +69,6 @@ class DeleteProductFailureAction {
   final String error;
   DeleteProductFailureAction(this.error);
 }
+
+// Reset status (dipakai form setelah menampilkan pesan error)
+class ResetStatusAction {}
